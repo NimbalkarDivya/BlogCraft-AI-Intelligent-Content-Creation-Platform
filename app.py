@@ -3,10 +3,12 @@ from google import genai
 import time
 
 # ---------------- API KEY ----------------
-#API_KEY = "AIzaSyBf9zyvMxeFGAXeh3ceVPGtVeXmNYY2Hhs"
 API_KEY = st.secrets["GEMINI_API_KEY"]
 
 client = genai.Client(api_key=API_KEY)
+
+# Model (supported Gemini model)
+MODEL = "gemini-1.5-flash"
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -19,8 +21,7 @@ st.set_page_config(
 st.title("✍️ BlogCraft AI")
 st.subheader("Intelligent Automated Blog Writing Assistant")
 
-st.markdown(
-"""
+st.markdown("""
 Generate **high-quality research-based blogs** using AI.
 
 Features:
@@ -28,8 +29,7 @@ Features:
 - Research Insights
 - Expert Quotes
 - SEO Keywords Analysis
-"""
-)
+""")
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
@@ -72,7 +72,7 @@ Include:
 """
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=MODEL,
         contents=prompt
     )
 
@@ -89,7 +89,7 @@ Summarize this blog into 5 key research insights:
 """
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=MODEL,
         contents=prompt
     )
 
@@ -107,7 +107,7 @@ Format:
 """
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=MODEL,
         contents=prompt
     )
 
