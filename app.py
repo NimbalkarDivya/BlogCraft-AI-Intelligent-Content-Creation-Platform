@@ -12,7 +12,7 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 
 # Gemini model
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-2.0-flash"
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
