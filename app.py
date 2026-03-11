@@ -3,15 +3,11 @@ from google import genai
 import time
 
 # ---------------- API KEY ----------------
-API_KEY = st.secrets.get("GEMINI_API_KEY")
-
-if not API_KEY:
-    st.error("⚠️ Gemini API key not found. Add it in Streamlit Secrets.")
-    st.stop()
+API_KEY = st.secrets["GEMINI_API_KEY"]
 
 client = genai.Client(api_key=API_KEY)
 
-# Stable Gemini model
+# Model (supported Gemini model)
 MODEL = "gemini-1.5-flash"
 
 # ---------------- PAGE CONFIG ----------------
@@ -41,7 +37,9 @@ with st.sidebar:
     st.header("⚙️ Blog Settings")
 
     blog_title = st.text_input("Blog Title")
+
     keywords = st.text_area("Keywords (comma separated)")
+
     num_words = st.slider("Blog Length", 300, 1500, step=200)
 
     tone = st.selectbox(
@@ -51,24 +49,6 @@ with st.sidebar:
 
     generate_btn = st.button("🚀 Generate Blog")
 
-
-# ---------------- SAFE GEMINI CALL ----------------
-def call_gemini(prompt):
-    try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt
-        )
-
-        if response and hasattr(response, "text"):
-            return response.text
-        else:
-            return "⚠️ AI returned empty response."
-
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
-
-
 # ---------------- BLOG GENERATOR ----------------
 def generate_blog(title, keywords, words, tone):
 
@@ -76,8 +56,11 @@ def generate_blog(title, keywords, words, tone):
 Write a well researched blog.
 
 Title: {title}
+
 Keywords: {keywords}
+
 Word Count: approximately {words}
+
 Tone: {tone}
 
 Include:
@@ -88,7 +71,12 @@ Include:
 - Conclusion
 """
 
-    return call_gemini(prompt)
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt
+    )
+
+    return response.text
 
 
 # ---------------- SUMMARY ----------------
@@ -100,7 +88,12 @@ Summarize this blog into 5 key research insights:
 {blog}
 """
 
-    return call_gemini(prompt)
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt
+    )
+
+    return response.text
 
 
 # ---------------- QUOTES ----------------
@@ -113,7 +106,12 @@ Format:
 "Quote" — Author
 """
 
-    return call_gemini(prompt)
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt
+    )
+
+    return response.text
 
 
 # ---------------- MAIN GENERATION ----------------
@@ -126,6 +124,7 @@ if generate_btn:
 
         with st.spinner("Generating AI blog..."):
             time.sleep(1)
+
             blog = generate_blog(blog_title, keywords, num_words, tone)
 
         st.success("✅ Blog Generated")
@@ -136,6 +135,7 @@ if generate_btn:
         with col1:
 
             st.header("📄 Blog Content")
+
             st.markdown(blog)
 
         # -------- BLOG INSIGHTS --------
@@ -144,11 +144,15 @@ if generate_btn:
             st.header("📊 Blog Insights")
 
             summary = generate_summary(blog)
+
             st.subheader("Key Takeaways")
+
             st.markdown(summary)
 
-            quotes = generate_quotes(blog_title)
             st.subheader("Expert Quotes")
+
+            quotes = generate_quotes(blog_title)
+
             st.markdown(quotes)
 
         # -------- BLOG ANALYTICS --------
