@@ -1,0 +1,4 @@
+Artificial Intelligence (AI) refers to machines that can simulate human intelligence. 
+It includes machine learning, deep learning, and natural language processing. 
+AI is widely used in healthcare for disease prediction, in finance for fraud detection, 
+and in automation for improving productivity.
