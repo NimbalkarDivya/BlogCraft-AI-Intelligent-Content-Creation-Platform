@@ -1,38 +1,95 @@
 import streamlit as st
 from google import genai
 import time
+import os
+
+# RAG imports
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
 
 # ---------------- API KEY ----------------
-API_KEY = st.secrets.get("GEMINI_API_KEY")
-
-if not API_KEY:
-    st.error("⚠️ Gemini API Key not found. Please add it in Streamlit Secrets.")
-    st.stop()
-
+API_KEY = "AIzaSyBGH2C4S8YkZAwQRDFAcrBpcG-JFs4y1TQ"
 client = genai.Client(api_key=API_KEY)
 
-# Gemini model
-MODEL = "gemini-2.0-flash"
+# ---------------- EMBEDDING MODEL ----------------
+embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# ---------------- VECTOR STORE ----------------
+dimension = 384
+index = faiss.IndexFlatL2(dimension)
+documents = []
+
+# ---------------- LOAD DOCUMENTS ----------------
+def load_docs():
+    folder = "data/docs"
+    texts = []
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    for file in os.listdir(folder):
+        with open(os.path.join(folder, file), "r", encoding="utf-8") as f:
+            texts.append(f.read())
+
+    return texts
+
+def chunk_text(text, chunk_size=300):
+    words = text.split()
+    return [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+
+def prepare_rag():
+    docs = load_docs()
+    all_chunks = []
+
+    for doc in docs:
+        chunks = chunk_text(doc)
+        all_chunks.extend(chunks)
+
+    embeddings = [embed_model.encode(chunk) for chunk in all_chunks]
+
+    if len(embeddings) > 0:
+        index.add(np.array(embeddings))
+        documents.extend(all_chunks)
+
+def retrieve_context(query, k=3):
+    if len(documents) == 0:
+        return ""
+
+    query_embedding = embed_model.encode(query)
+    D, I = index.search(np.array([query_embedding]), k)
+
+    return "\n".join([documents[i] for i in I[0]])
+
+# Load RAG once
+if "rag_loaded" not in st.session_state:
+    prepare_rag()
+    st.session_state.rag_loaded = True
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
-    page_title="BlogCraft AI",
+    page_title="BlogCraft AI PRO",
     page_icon="✍️",
     layout="wide"
 )
 
+# ---------------- MEMORY ----------------
+if "history" not in st.session_state:
+    st.session_state.history = []
+
 # ---------------- HEADER ----------------
-st.title("✍️ BlogCraft AI")
-st.subheader("Intelligent Automated Blog Writing Assistant")
+st.title("🚀 BlogCraft AI PRO")
+st.subheader("RAG-powered Intelligent Blog Writing Assistant")
 
 st.markdown("""
-Generate **high-quality research-based blogs** using AI.
+Generate **high-quality, research-backed blogs** using AI + RAG.
 
-Features:
-- AI Blog Writer
-- Research Insights
+### 🔥 Features:
+- AI Blog Writer (Context-Aware)
+- Research Retrieval (RAG)
 - Expert Quotes
-- SEO Keywords Analysis
+- SEO Analysis
+- Memory Tracking
 """)
 
 # ---------------- SIDEBAR ----------------
@@ -51,29 +108,17 @@ with st.sidebar:
 
     generate_btn = st.button("🚀 Generate Blog")
 
-
-# ---------------- GEMINI CALL FUNCTION ----------------
-def call_gemini(prompt):
-    try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt
-        )
-
-        # Handle Gemini response safely
-        if hasattr(response, "text") and response.text:
-            return response.text
-        else:
-            return "⚠️ AI returned an empty response."
-
-    except Exception as e:
-        return f"❌ Gemini API Error: {str(e)}"
-
-
-# ---------------- BLOG GENERATOR ----------------
+# ---------------- BLOG GENERATOR (RAG ENABLED) ----------------
 def generate_blog(title, keywords, words, tone):
 
+    context = retrieve_context(title + keywords)
+
     prompt = f"""
+You are an expert blog writer.
+
+Use the following research context:
+{context}
+
 Write a well researched blog.
 
 Title: {title}
@@ -86,38 +131,38 @@ Include:
 - Research insights
 - Statistics
 - Expert quotes
+- SEO optimization
 - Conclusion
 """
 
-    return call_gemini(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
 
+    return response.text
 
 # ---------------- SUMMARY ----------------
 def generate_summary(blog):
-
-    prompt = f"""
-Summarize this blog into 5 key research insights:
-
-{blog}
-"""
-
-    return call_gemini(prompt)
-
+    prompt = f"Summarize into 5 key insights:\n{blog}"
+    return client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    ).text
 
 # ---------------- QUOTES ----------------
 def generate_quotes(topic):
+    prompt = f'Give 3 expert quotes on "{topic}"'
+    return client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    ).text
 
-    prompt = f"""
-Give 3 expert quotes related to {topic}.
+# ---------------- SEO ----------------
+def seo_score(blog, keywords):
+    return sum([blog.lower().count(k.strip()) for k in keywords.split(",")])
 
-Format:
-"Quote" — Author
-"""
-
-    return call_gemini(prompt)
-
-
-# ---------------- MAIN GENERATION ----------------
+# ---------------- MAIN ----------------
 if generate_btn:
 
     if blog_title.strip() == "" or keywords.strip() == "":
@@ -125,47 +170,67 @@ if generate_btn:
 
     else:
 
-        with st.spinner("Generating AI blog..."):
+        with st.spinner("Generating AI blog with RAG..."):
             time.sleep(1)
+
             blog = generate_blog(blog_title, keywords, num_words, tone)
+            summary = generate_summary(blog)
+            quotes = generate_quotes(blog_title)
+            score = seo_score(blog, keywords)
+
+            # Save history
+            st.session_state.history.append({
+                "title": blog_title,
+                "blog": blog
+            })
 
         st.success("✅ Blog Generated")
 
         col1, col2 = st.columns([2,1])
 
+        # -------- BLOG --------
         with col1:
             st.header("📄 Blog Content")
             st.markdown(blog)
 
+        # -------- INSIGHTS --------
         with col2:
-            st.header("📊 Blog Insights")
+            st.header("📊 Insights")
 
-            summary = generate_summary(blog)
             st.subheader("Key Takeaways")
             st.markdown(summary)
 
-            quotes = generate_quotes(blog_title)
             st.subheader("Expert Quotes")
             st.markdown(quotes)
 
+            st.subheader("SEO Score")
+            st.metric("Score", score)
+
+        # -------- ANALYTICS --------
         st.divider()
 
         col3, col4, col5 = st.columns(3)
 
         with col3:
-            st.metric("Target Word Count", num_words)
+            st.metric("Target Words", num_words)
 
         with col4:
-            keyword_count = len(keywords.split(","))
-            st.metric("Keywords", keyword_count)
+            st.metric("Keywords", len(keywords.split(",")))
 
         with col5:
-            reading_time = int(num_words / 200)
-            st.metric("Reading Time", f"{reading_time} min")
+            st.metric("Reading Time", f"{int(num_words/200)} min")
 
+        # -------- DOWNLOAD --------
         st.download_button(
             label="⬇ Download Blog",
             data=blog,
             file_name="blogcraft_article.txt",
             mime="text/plain"
         )
+
+# ---------------- HISTORY ----------------
+st.sidebar.divider()
+st.sidebar.subheader("🕓 History")
+
+for item in st.session_state.history[-5:]:
+    st.sidebar.write(f"• {item['title']}")
