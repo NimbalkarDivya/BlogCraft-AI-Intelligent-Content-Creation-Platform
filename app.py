@@ -2,8 +2,12 @@ import streamlit as st
 import time
 import os
 
-# 🔐 Get API key from Streamlit secrets
-api_key = st.secrets["GROQ_API_KEY"]
+# 🔐 Safe API Key Handling (Streamlit Cloud)
+api_key = st.secrets.get("GROQ_API_KEY", "")
+
+if not api_key:
+    st.error("🚨 API key missing. Please set GROQ_API_KEY in Streamlit secrets.")
+    st.stop()
 
 # 🔥 Groq LLM
 from langchain_groq import ChatGroq
@@ -44,8 +48,11 @@ def load_docs():
         os.makedirs(folder)
 
     for file in os.listdir(folder):
-        with open(os.path.join(folder, file), "r", encoding="utf-8") as f:
-            texts.append(f.read())
+        try:
+            with open(os.path.join(folder, file), "r", encoding="utf-8") as f:
+                texts.append(f.read())
+        except:
+            continue
 
     return texts
 
@@ -81,7 +88,7 @@ def retrieve_context(query, k=3):
 
     return "\n".join([documents[i] for i in I[0]])
 
-# Load RAG once
+# ---------------- LOAD RAG ONCE ----------------
 if "rag_loaded" not in st.session_state:
     prepare_rag()
     st.session_state.rag_loaded = True
