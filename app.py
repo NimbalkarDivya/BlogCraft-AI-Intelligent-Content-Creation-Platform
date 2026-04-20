@@ -1,16 +1,29 @@
 import streamlit as st
-from google import genai
 import time
 import os
 
-# RAG imports
+# 🔑 Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
+# 🔥 Groq LLM
+from langchain_groq import ChatGroq
+from langchain_core.messages import HumanMessage
+
+llm = ChatGroq(model="llama-3.3-70b-versatile")
+
+# ---------------- SAFE GENERATE FUNCTION ----------------
+def safe_generate(prompt):
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        return response.content
+    except Exception as e:
+        return f"⚠️ Error: {str(e)}"
+
+# ---------------- RAG IMPORTS ----------------
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
-
-# ---------------- API KEY ----------------
-API_KEY = "AIzaSyBGH2C4S8YkZAwQRDFAcrBpcG-JFs4y1TQ"
-client = genai.Client(api_key=API_KEY)
 
 # ---------------- EMBEDDING MODEL ----------------
 embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -78,7 +91,7 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 # ---------------- HEADER ----------------
-st.title("🚀 BlogCraft AI PRO")
+st.title("🚀 BlogCraft AI")
 st.subheader("RAG-powered Intelligent Blog Writing Assistant")
 
 st.markdown("""
@@ -108,10 +121,10 @@ with st.sidebar:
 
     generate_btn = st.button("🚀 Generate Blog")
 
-# ---------------- BLOG GENERATOR (RAG ENABLED) ----------------
+# ---------------- BLOG GENERATOR ----------------
 def generate_blog(title, keywords, words, tone):
 
-    context = retrieve_context(title + keywords)
+    context = retrieve_context(title + " " + keywords)
 
     prompt = f"""
 You are an expert blog writer.
@@ -135,28 +148,17 @@ Include:
 - Conclusion
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
-    return response.text
+    return safe_generate(prompt)
 
 # ---------------- SUMMARY ----------------
 def generate_summary(blog):
     prompt = f"Summarize into 5 key insights:\n{blog}"
-    return client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    ).text
+    return safe_generate(prompt)
 
 # ---------------- QUOTES ----------------
 def generate_quotes(topic):
     prompt = f'Give 3 expert quotes on "{topic}"'
-    return client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    ).text
+    return safe_generate(prompt)
 
 # ---------------- SEO ----------------
 def seo_score(blog, keywords):
@@ -174,6 +176,11 @@ if generate_btn:
             time.sleep(1)
 
             blog = generate_blog(blog_title, keywords, num_words, tone)
+
+            if "⚠️" in blog:
+                st.error(blog)
+                st.stop()
+
             summary = generate_summary(blog)
             quotes = generate_quotes(blog_title)
             score = seo_score(blog, keywords)
@@ -186,7 +193,7 @@ if generate_btn:
 
         st.success("✅ Blog Generated")
 
-        col1, col2 = st.columns([2,1])
+        col1, col2 = st.columns([2, 1])
 
         # -------- BLOG --------
         with col1:
