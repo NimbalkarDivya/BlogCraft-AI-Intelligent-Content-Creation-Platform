@@ -2,15 +2,17 @@ import streamlit as st
 import time
 import os
 
-# 🔑 Load environment variables
-from dotenv import load_dotenv
-load_dotenv()
+# 🔐 Get API key from Streamlit secrets
+api_key = st.secrets["GROQ_API_KEY"]
 
 # 🔥 Groq LLM
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 
-llm = ChatGroq(model="llama-3.3-70b-versatile")
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    api_key=api_key
+)
 
 # ---------------- SAFE GENERATE FUNCTION ----------------
 def safe_generate(prompt):
@@ -49,7 +51,10 @@ def load_docs():
 
 def chunk_text(text, chunk_size=300):
     words = text.split()
-    return [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+    return [
+        " ".join(words[i:i + chunk_size])
+        for i in range(0, len(words), chunk_size)
+    ]
 
 def prepare_rag():
     docs = load_docs()
@@ -59,11 +64,13 @@ def prepare_rag():
         chunks = chunk_text(doc)
         all_chunks.extend(chunks)
 
+    if len(all_chunks) == 0:
+        return
+
     embeddings = [embed_model.encode(chunk) for chunk in all_chunks]
 
-    if len(embeddings) > 0:
-        index.add(np.array(embeddings))
-        documents.extend(all_chunks)
+    index.add(np.array(embeddings))
+    documents.extend(all_chunks)
 
 def retrieve_context(query, k=3):
     if len(documents) == 0:
@@ -225,7 +232,7 @@ if generate_btn:
             st.metric("Keywords", len(keywords.split(",")))
 
         with col5:
-            st.metric("Reading Time", f"{int(num_words/200)} min")
+            st.metric("Reading Time", f"{int(num_words / 200)} min")
 
         # -------- DOWNLOAD --------
         st.download_button(
