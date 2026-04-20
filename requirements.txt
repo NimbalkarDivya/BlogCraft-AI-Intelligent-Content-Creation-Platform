@@ -1,10 +1,7 @@
-﻿﻿streamlit==1.55.0
-google-genai==1.66.0
-
-# RAG (IMPORTANT)
-faiss-cpu==1.8.0
+streamlit==1.35.0
+langchain
+langchain-groq
 sentence-transformers==3.0.1
+faiss-cpu==1.8.0
 numpy==1.26.4
-python-dotenv
-# Optional but useful
 pandas==2.2.2
