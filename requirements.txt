@@ -2,6 +2,6 @@ streamlit==1.35.0
 langchain
 langchain-groq
 sentence-transformers==3.0.1
-faiss-cpu==1.8.0
+faiss-cpu==1.9.0.post1
 numpy==1.26.4
 pandas==2.2.2
